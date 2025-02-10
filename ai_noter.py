@@ -12,12 +12,21 @@ os.environ["TOKENIZERS_PARALLELISM"] = "False"
 def setup_alias():
     script_path = os.path.realpath(__file__)
     alias_command = f"alias ai_noter='python {script_path}'"
-    shell_rc = os.path.expanduser("~/.bashrc") if os.path.exists(os.path.expanduser("~/.bashrc")) else os.path.expanduser("~/.zshrc")
     
-    with open(shell_rc, "r+") as file:
+    # Kullanıcının kabuğunu belirle ve uygun dosyayı seç
+    shell_rc = os.path.expanduser("~/.bashrc") if os.path.exists(os.path.expanduser("~/.bashrc")) else os.path.expanduser("~/.zshrc")
+
+    # Dosya içinde alias olup olmadığını kontrol et
+    with open(shell_rc, "r") as file:
         lines = file.readlines()
-        if alias_command not in lines:
+    
+    if any(alias_command.strip() in line.strip() for line in lines):  
+        print("Alias already exists. No changes made.")
+    else:
+        with open(shell_rc, "a") as file:
             file.write(f"\n{alias_command}\n")
+        print("Alias added successfully. Restart your shell or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes.")
+
 
 def main():
     setup_alias()

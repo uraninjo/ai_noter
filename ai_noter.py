@@ -2,31 +2,12 @@ import os
 import time
 import pickle as pkl
 import argparse
-from utils import download_audio_from_youtube, run_whisper, print_segments, model_to_answer, chatbot_interface, get_API_KEY_env, check_ollama_models
+from utils import download_audio_from_youtube, run_whisper, print_segments, model_to_answer_choose, chatbot_interface, get_API_KEY_env, check_ollama_models, setup_alias
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # TensorFlow uyarılarını kapatır
 os.environ["GRPC_VERBOSITY"] = "ERROR"  # gRPC hata mesajlarını gizler
 os.environ["GRPC_TRACE"] = ""  # gRPC detaylı loglarını kapatır
 
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
-
-def setup_alias():
-    script_path = os.path.realpath(__file__)
-    alias_command = f"alias ai_noter='python {script_path}'"
-    
-    # Kullanıcının kabuğunu belirle ve uygun dosyayı seç
-    shell_rc = os.path.expanduser("~/.bashrc") if os.path.exists(os.path.expanduser("~/.bashrc")) else os.path.expanduser("~/.zshrc")
-
-    # Dosya içinde alias olup olmadığını kontrol et
-    with open(shell_rc, "r") as file:
-        lines = file.readlines()
-    
-    if any(alias_command.strip() in line.strip() for line in lines):  
-        print("Alias already exists. No changes made.")
-    else:
-        with open(shell_rc, "a") as file:
-            file.write(f"\n{alias_command}\n")
-        print("Alias added successfully. Restart your shell or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes.")
-
 
 def main():
     setup_alias()
@@ -34,7 +15,7 @@ def main():
     parser.add_argument("youtube_url", type=str, help="YouTube URL to be processed")
     parser.add_argument("--use_ollama", action="store_true", help="Enable Ollama usage (optional).")
     parser.add_argument("--ollama_model_name", type=str, default="deepseek-r1:14b", help="Ollama model to be used (default: deepseek-r1:14b)")
-    parser.add_argument("--model_size", type=str, default="base", help="Whisper model to be used (default: base)")
+    parser.add_argument("--whisper_model_size", type=str, default="base", help="Whisper model to be used (default: base)")
     args = parser.parse_args()
     
     username = os.environ.get("USER")
@@ -42,7 +23,7 @@ def main():
     os.makedirs(video_cache_path, exist_ok=True)
     
     # yt_start_time = time.time()
-    MODEL_NAME = args.model_size
+    WHISPER_MODEL_NAME = args.whisper_model_size
     VIDEO_URL = args.youtube_url
     USE_OLLAMA = args.use_ollama
     
@@ -51,11 +32,15 @@ def main():
 
         if GOOGLE_API_KEY == "":
             raise "GOOGLE_API_KEY is not set. Please set it in the environment variables."
+        else:
+            LLM_MODEL_NAME = "gemini-1.5-flash"
     else:
         # Check models and ensure the specified model is installed
         installed_models = check_ollama_models()
         if args.ollama_model_name not in installed_models:
             raise ValueError(f"The specified model '{args.ollama_model_name}' is not installed in Ollama.")
+        else:
+            LLM_MODEL_NAME = args.ollama_model_name
 
     audio_path, title = download_audio_from_youtube(VIDEO_URL, video_cache_path)
     print(f"Video name: {title}\n\n")
@@ -68,13 +53,13 @@ def main():
         with open(whisper_pkl_path, "rb") as file:
             word_by_word_segments, segments, language = pkl.load(file)
     else:
-        word_segments, language = run_whisper(input_file=audio_path, word_timestamps=True, model_name=MODEL_NAME)
+        word_segments, language = run_whisper(input_file=audio_path, word_timestamps=True, model_name=WHISPER_MODEL_NAME)
         word_by_word_segments, segments = print_segments(word_segments)
         pkl.dump([word_by_word_segments, segments, language], open(whisper_pkl_path, "wb"))
     
     full_text = "".join([segment[2] for segment in segments])
 
-    extracted_notes = model_to_answer(full_text, model_name='gemini-1.5-flash', prompt=None, language=language)
+    extracted_notes = model_to_answer_choose(full_text, model_name=LLM_MODEL_NAME, prompt=None, language=language, USE_OLLAMA=USE_OLLAMA)
     
     note_path = os.path.join(video_cache_path, f"{video_name}_notes.txt")
     

@@ -7,6 +7,7 @@ import time
 import ollama
 import subprocess
 import json
+import re
 w.simplefilter("ignore")
 
 def get_API_KEY_env():
@@ -15,6 +16,24 @@ def get_API_KEY_env():
             for line in f.readlines():
                 if "GOOGLE_API_KEY" in line:
                     return line.split("=")[1].strip()
+
+def setup_alias():
+    script_path = os.path.dirname(os.path.realpath(__file__)) + "/ai_noter.py"
+    alias_command = f"alias ai_noter='python {script_path}'"
+    
+    # Kullanıcının kabuğunu belirle ve uygun dosyayı seç
+    shell_rc = os.path.expanduser("~/.bashrc") if os.path.exists(os.path.expanduser("~/.bashrc")) else os.path.expanduser("~/.zshrc")
+
+    # Dosya içinde alias olup olmadığını kontrol et
+    with open(shell_rc, "r") as file:
+        lines = file.readlines()
+    
+    if any(alias_command.strip() in line.strip() for line in lines):  
+        print("Alias already exists. No changes made.")
+    else:
+        with open(shell_rc, "a") as file:
+            file.write(f"\n{alias_command}\n")
+        print("Alias added successfully. Restart your shell or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes.")
 
 def check_ollama_models():
     try:
@@ -31,9 +50,6 @@ def check_ollama_models():
         if not model_lines:
             raise RuntimeError("No models are installed in Ollama. Please install a model first.")
         model_names = [line.split("\t")[0] for line in model_lines]  # İlk sütun model adı
-        print("Installed models:")
-        for name in model_names:
-            print(f"- {name}")
         return model_names
 
     except Exception as e:
@@ -82,8 +98,9 @@ def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
             break
         if use_ollama:
             updated_notes = get_ollama_response(conversation + user_input)
+            updated_notes = remove_think_sections(updated_notes)
         else:
-            model = get_model()
+            model = get_chatbot_model(language=language)
             response = model.generate_content(conversation + user_input)
             updated_notes = response_to_answer(response)
         print("Chatbot: ", updated_notes)
@@ -143,6 +160,37 @@ def model_to_answer(full_text, model_name='gemini-1.5-flash', prompt=None, langu
     answer = response_to_answer(response)
     print("Notes: \n", answer)
     return answer
+
+def remove_think_sections(text):
+    """Metindeki <think>...</think> bloklarını temizler."""
+    cleaned_text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    return cleaned_text.strip()
+
+def model_to_answer_ollama(full_text, model_name='mistral', prompt=None, language="tr"):
+    if prompt is None:
+        prompt = get_prompt(language)
+    
+    response = None
+    while response is None:
+        try:
+            response = ollama.generate(model=model_name, prompt=f"{prompt}\n\n{full_text}")
+        except Exception as e:
+            print("Ollama Modeli Hata", e)
+            print("Tekrar denenmeden önce biraz bekleniyor...")
+            time.sleep(10)
+    
+    answer = response["response"]
+    answer = remove_think_sections(answer)
+
+    print("Notes: \n", answer)
+    return answer
+
+def model_to_answer_choose(full_text, model_name='gemini-1.5-flash', prompt=None, language="tr", USE_OLLAMA=False):
+    if USE_OLLAMA:
+        return model_to_answer_ollama(full_text, model_name=model_name, prompt=prompt, language=language)
+
+    else:
+        return model_to_answer(full_text, model_name=model_name, prompt=prompt, language=language)
 
 def download_audio_from_youtube(url, video_cache_path):
     os.makedirs(video_cache_path, exist_ok=True)

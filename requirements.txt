@@ -1,0 +1,5 @@
+yt-dlp
+ollama
+faster-whisper
+ctranslate2==4.4.0
+google-generativeai

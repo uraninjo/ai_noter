@@ -85,25 +85,39 @@ def get_chatbot_prompt(language="tr"):
     return prompt
 
 def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
+    """
+    Kullanıcı ile iteratif olarak notları geliştiren bir chatbot arayüzü.
+    """
+    conversation = f"Video'dan çıkarılan metin: {full_text}\nMevcut notlar:\n{initial_notes}\n" if language == "tr" else f"Extracted text from the video: {full_text}\nCurrent notes:\n{initial_notes}\n"
+    
     if language == "tr":
         print("\nNotları düzenlemek için chatbot ile sohbet edebilirsiniz. Çıkmak için 'exit' yazın.\n")
-        conversation = f"Video'dan çıkarılan metin: {full_text}\nMevcut notlar:\n{initial_notes}\n\nKullanıcı, notları nasıl düzenlemek istiyor?\nKullanıcı isteği:"
     else:
         print("\nYou can chat with the chatbot to edit the notes. Type 'exit' to quit.\n")
-        conversation = f"Extracted text from the video: {full_text}\nCurrent notes:\n{initial_notes}\n\nHow does the user want to edit the notes?\nUser request:"
+    
+    updated_notes = initial_notes
     while True:
-        user_input = input("> ")
+        print("\nChatbot: Güncellenmiş notlar:\n" if language == "tr" else "\nChatbot: Updated notes:\n", updated_notes)
+
+        user_input = input("\nDüzenlemek için isteğinizi girin: " if language == "tr" else "\nEnter your request to edit: ")
+        
         if user_input.lower() == "exit":
-            print("Chatbot session ended.")
+            print("Chatbot oturumu kapatıldı." if language == "tr" else "Chatbot session ended.")
             break
+        
+        conversation += f"\nKullanıcı isteği: {user_input}\n" if language == "tr" else f"\nUser request: {user_input}\n"
+        
         if use_ollama:
-            updated_notes = get_ollama_response(conversation + user_input)
+            updated_notes = get_ollama_response(conversation)
             updated_notes = remove_think_sections(updated_notes)
         else:
             model = get_chatbot_model(language=language)
-            response = model.generate_content(conversation + user_input)
+            response = model.generate_content(conversation)
             updated_notes = response_to_answer(response)
-        print("Chatbot: ", updated_notes)
+        
+        print("\nChatbot: Güncellenmiş notlar:\n" if language == "tr" else "\nChatbot: Updated notes:\n", updated_notes)
+        
+        initial_notes = updated_notes  # Notları güncelleyerek döngüye devam et
     return updated_notes
 
 def get_prompt(language="tr"):

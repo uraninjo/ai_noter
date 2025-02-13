@@ -3,6 +3,9 @@ import time
 import pickle as pkl
 import argparse
 from utils import download_audio_from_youtube, run_whisper, print_segments, model_to_answer_choose, chatbot_interface, get_API_KEY_env, check_ollama_models, setup_alias
+from colorama import Fore, Style, init
+init(autoreset=True)
+
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # TensorFlow uyarılarını kapatır
 os.environ["GRPC_VERBOSITY"] = "ERROR"  # gRPC hata mesajlarını gizler
 os.environ["GRPC_TRACE"] = ""  # gRPC detaylı loglarını kapatır
@@ -43,7 +46,7 @@ def main():
             LLM_MODEL_NAME = args.ollama_model_name
 
     audio_path, title = download_audio_from_youtube(VIDEO_URL, video_cache_path)
-    print(f"Video name: {title}\n\n")
+    print(Fore.GREEN + f"Video name:\n {title}\n")
     
     video_name = os.path.basename(audio_path).split(".")[0]
 
@@ -60,14 +63,17 @@ def main():
     full_text = "".join([segment[2] for segment in segments])
 
     extracted_notes = model_to_answer_choose(full_text, model_name=LLM_MODEL_NAME, prompt=None, language=language, USE_OLLAMA=USE_OLLAMA)
-    
+    print(Fore.CYAN + "Notes: \n", extracted_notes)
+
     note_path = os.path.join(video_cache_path, f"{video_name}_notes.txt")
-    
-    user_feedback = input("Do you want AI to edit the notes (yes/no): ")
+
+    print(Fore.MAGENTA + "[Chatbot]: Do you want AI to edit the notes (yes/no):")
+    print(Fore.CYAN + "[Kullanıcı]: ", end="")
+    user_feedback = input()
     if user_feedback.lower() == "y" or user_feedback.lower() == "yes":
         extracted_notes = chatbot_interface(extracted_notes, full_text, language, use_ollama=USE_OLLAMA)
     else:
-        print("Notes saved.")
+        print(Fore.GREEN, "Notes saved.")
 
     with open(note_path, "w") as file:
         file.write(extracted_notes)

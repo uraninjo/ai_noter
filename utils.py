@@ -8,6 +8,16 @@ import ollama
 import subprocess
 import json
 import re
+from colorama import Fore, Style, init
+import sys
+import locale
+
+sys.stdin.reconfigure(encoding='utf-8')  # input() için UTF-8 kodlamasını zorla
+sys.stdout.reconfigure(encoding='utf-8')  # print() için UTF-8 kodlamasını zorla
+
+# print("Terminal encoding:", locale.getpreferredencoding())  # Terminalin karakter setini gör
+
+init(autoreset=True)
 w.simplefilter("ignore")
 
 def get_API_KEY_env():
@@ -29,11 +39,11 @@ def setup_alias():
         lines = file.readlines()
     
     if any(alias_command.strip() in line.strip() for line in lines):  
-        print("Alias already exists. No changes made.")
+        print(Fore.YELLOW + "Alias already exists. No changes made.")
     else:
         with open(shell_rc, "a") as file:
             file.write(f"\n{alias_command}\n")
-        print("Alias added successfully. Restart your shell or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes.")
+        print(Fore.GREEN, "Alias added successfully. Restart your shell or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes.")
 
 def check_ollama_models():
     try:
@@ -95,11 +105,14 @@ def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
     else:
         print("\nYou can chat with the chatbot to edit the notes. Type 'exit' to quit.\n")
     
-    updated_notes = initial_notes
+    updated_notes = None
     while True:
-        print("\nChatbot: Güncellenmiş notlar:\n" if language == "tr" else "\nChatbot: Updated notes:\n", updated_notes)
-
-        user_input = input("\nDüzenlemek için isteğinizi girin: " if language == "tr" else "\nEnter your request to edit: ")
+        if not updated_notes is None:
+            print(Fore.MAGENTA + ("\nChatbot: Güncellenmiş notlar:\n" if language == "tr" else "\nChatbot: Updated notes:\n"), updated_notes)
+        print(Fore.MAGENTA + "[Chatbot]: ", end="")
+        print(Fore.MAGENTA + ("Düzenlemek için isteğinizi girin: " if language == "tr" else "Enter your request to edit: "))
+        print(Fore.CYAN + "[Kullanıcı]: ", end="")
+        user_input = input()
         
         if user_input.lower() == "exit":
             print("Chatbot oturumu kapatıldı." if language == "tr" else "Chatbot session ended.")
@@ -114,9 +127,7 @@ def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
             model = get_chatbot_model(language=language)
             response = model.generate_content(conversation)
             updated_notes = response_to_answer(response)
-        
-        print("\nChatbot: Güncellenmiş notlar:\n" if language == "tr" else "\nChatbot: Updated notes:\n", updated_notes)
-        
+
         initial_notes = updated_notes  # Notları güncelleyerek döngüye devam et
     return updated_notes
 
@@ -172,7 +183,6 @@ def model_to_answer(full_text, model_name='gemini-1.5-flash', prompt=None, langu
             print("Tekrar denenmeden önce biraz bekleniyor...")
             time.sleep(10)
     answer = response_to_answer(response)
-    print("Notes: \n", answer)
     return answer
 
 def remove_think_sections(text):
@@ -196,7 +206,6 @@ def model_to_answer_ollama(full_text, model_name='mistral', prompt=None, languag
     answer = response["response"]
     answer = remove_think_sections(answer)
 
-    print("Notes: \n", answer)
     return answer
 
 def model_to_answer_choose(full_text, model_name='gemini-1.5-flash', prompt=None, language="tr", USE_OLLAMA=False):

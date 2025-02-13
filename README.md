@@ -37,3 +37,5 @@ If you prefer a shorter command (with default settings - Gemini), use:
 ```
 ai_noter "https://www.youtube.com/watch?v=HbgzrKJvDRw"
 ```
+
+![alt text](docs/image.png)

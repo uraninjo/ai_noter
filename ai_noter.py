@@ -4,6 +4,11 @@ import pickle as pkl
 import argparse
 from utils import download_audio_from_youtube, run_whisper, print_segments, model_to_answer_choose, chatbot_interface, get_API_KEY_env, check_ollama_models, setup_alias
 from colorama import Fore, Style, init
+import sys
+import locale
+
+sys.stdin.reconfigure(encoding='utf-8')  # input() için UTF-8 kodlamasını zorla
+sys.stdout.reconfigure(encoding='utf-8')  # print() için UTF-8 kodlamasını zorla
 init(autoreset=True)
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # TensorFlow uyarılarını kapatır

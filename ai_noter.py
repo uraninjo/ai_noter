@@ -14,6 +14,7 @@ init(autoreset=True)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # TensorFlow uyarılarını kapatır
 os.environ["GRPC_VERBOSITY"] = "ERROR"  # gRPC hata mesajlarını gizler
 os.environ["GRPC_TRACE"] = ""  # gRPC detaylı loglarını kapatır
+os.environ["PYTHONIOENCODING"] = "utf-8"
 
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
 

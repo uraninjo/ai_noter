@@ -112,7 +112,7 @@ def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
         print(Fore.MAGENTA + "[Chatbot]: ", end="")
         print(Fore.MAGENTA + ("Düzenlemek için isteğinizi girin: " if language == "tr" else "Enter your request to edit: "))
         print(Fore.CYAN + "[Kullanıcı]: ", end="")
-        user_input = input()
+        user_input = input().strip()
         
         if user_input.lower() == "exit":
             print("Chatbot oturumu kapatıldı." if language == "tr" else "Chatbot session ended.")
@@ -134,33 +134,73 @@ def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
 def get_prompt(language="tr"):
     if language == "tr":
         prompt = """
-        Sana bir metin vereceğim. Bu metinden alınabilecek önemli notları çıkar. 
-        Aşağıdaki adımları takip et:
-        1. Önemli bilgileri ve maddeleri belirle.
-        2. Konunun özetini çıkar.
-        3. Eğer sayısal veriler veya istatistikler varsa, bunları listele.
-        4. Eğer metinde eylem adımları varsa, bunları belirgin hale getir.
+        Sana bir metin vereceğim. Bu metinden alınabilecek en önemli, kritik ve detaylı bilgileri çıkar. 
+        Analiz yaparken şu adımları takip et:
         
+        1. **Kritik Bilgileri Belirle:**  
+            - Metindeki temel kavramları, önemli terimleri ve ana fikirleri tespit et.  
+            - Metindeki iddiaları, savunulan görüşleri ve karşıt argümanları belirle.  
+            - Eğer metin teknik veya akademikse, kilit prensipleri ve süreçleri açıkla.  
+        
+        2. **Derinlemesine Açıklama Yap:**  
+            - "Neden?", "Nasıl?", "Kim?", "Ne zaman?" ve "Ne şekilde?" sorularını sorarak bilgileri detaylandır.  
+            - Kavramların ve olayların arkasındaki nedenleri ve süreçleri açıkla.  
+            - Bilginin önemini vurgula: "Bu bilgi neden kritiktir?" sorusuna yanıt ver.  
+        
+        3. **Sayısal Verileri Listele:**  
+            - Metinde geçen istatistikleri, oranları, ölçüleri ve diğer sayısal bilgileri belirle.  
+            - Sayısal verileri bağlam içinde açıkla: "Bu sayı ne anlama geliyor?" sorusunu yanıtla.  
+        
+        4. **Eyleme Geçirilebilir Adımları Vurgula:**  
+            - Metin içinde herhangi bir süreç, prosedür, talimat veya uygulanabilir bir öneri varsa, bunları listele.  
+            - Adımları açık, net ve sıralı olarak belirt.  
+        
+        5. **Farklı Bakış Açılarını Dahil Et:**  
+            - Eğer metin bir tartışma içeriyorsa, farklı görüşleri listele ve güçlü/zayıf yönlerini açıkla.  
+            - Metindeki olası önyargıları veya eksik yönleri tespit et.  
+
         Çıktıyı şu formatta ver:
-        - **Özet:** (Metnin kısa özeti)
-        - **Önemli Noktalar:** (Maddeler halinde bilgiler)
-        - **İlgili Sayısal Veriler:** (Varsa istatistikler, sayılar)
-        - **Eylem Adımları:** (Varsa talimatlar veya yapılması gerekenler)
+
+        - **Özet:** (Metnin en önemli noktalarını içeren kısa bir özet)  
+        - **Önemli Noktalar:** (Maddeler halinde detaylı analiz)  
+        - **İlgili Sayısal Veriler:** (Varsa istatistikler ve sayılar)  
+        - **Eylem Adımları:** (Varsa yapılması gerekenler)  
+        - **Farklı Bakış Açıları:** (Varsa karşıt görüşler ve analizleri)  
         """
     else:
         prompt = """
-        I will give you a text. Extract all key points that can be noted. 
-        Follow these steps:
-        1. Identify important pieces of information and key points.
-        2. Summarize the main topic.
-        3. If there are numerical data or statistics, list them.
-        4. If there are action steps, highlight them.
+        I will give you a text. Extract the most important, critical, and detailed information.  
+        Follow these steps for in-depth analysis:
+        
+        1. **Identify Critical Information:**  
+            - Detect key concepts, important terms, and core ideas.  
+            - Identify claims, arguments, and counterarguments presented in the text.  
+            - If the text is technical or academic, explain the key principles and processes.  
+        
+        2. **Provide Detailed Explanations:**  
+            - Answer "Why?", "How?", "Who?", "When?", and "In what way?" questions.  
+            - Explain the reasons and mechanisms behind concepts and events.  
+            - Highlight the significance of the information: "Why is this important?"  
+
+        3. **List Numerical Data:**  
+            - Identify statistics, ratios, measurements, and other numerical data.  
+            - Explain the context of numbers: "What does this number mean?"  
+
+        4. **Highlight Actionable Steps:**  
+            - If the text includes a process, procedure, instructions, or practical recommendations, list them.  
+            - Provide steps in a clear and ordered manner.  
+
+        5. **Include Different Perspectives:**  
+            - If the text contains debates, list opposing views and analyze their strengths/weaknesses.  
+            - Detect potential biases or missing elements in the discussion.  
 
         Provide the output in the following format:
-        - **Summary:** (A brief summary of the text)
-        - **Key Points:** (Bullet points of important details)
-        - **Relevant Numerical Data:** (Any numbers or statistics)
-        - **Actionable Steps:** (Instructions or steps if applicable)
+
+        - **Summary:** (A brief summary highlighting key points)  
+        - **Key Points:** (Bullet points with detailed analysis)  
+        - **Relevant Numerical Data:** (Any numbers or statistics if available)  
+        - **Actionable Steps:** (If there are any instructions or processes)  
+        - **Different Perspectives:** (If applicable, opposing views and analysis)  
         """
     return prompt
 

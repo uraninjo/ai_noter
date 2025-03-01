@@ -18,6 +18,7 @@ While not required, using Conda is recommended for an isolated environment:
 conda create --name ai_noter python=3.12
 conda activate ai_noter
 pip install -r requirements.txt
+conda install ffmpeg
 ```
 
 ## **Usage**  
@@ -33,7 +34,11 @@ python ai_noter.py "https://www.youtube.com/watch?v=HbgzrKJvDRw" --model_size "l
 ```
 
 #### **2. Simplified Usage(Gemini Default)**
-If you prefer a shorter command (with default settings - Gemini), use:
+If you prefer a shorter command (with default settings - Gemini). Add the following line to your `.bashrc` or `.zshrc` file and restart your terminal:
+
+```sh
+alias ai_noterp='python /home/$USER/ai_noter/ai_noter.py'
+```
 
 ```
 ai_noter "https://www.youtube.com/watch?v=HbgzrKJvDRw"

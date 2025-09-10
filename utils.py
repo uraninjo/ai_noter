@@ -134,75 +134,122 @@ def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
 def get_prompt(language="tr"):
     if language == "tr":
         prompt = """
-        Sana bir metin vereceğim. Bu metinden alınabilecek en önemli, kritik ve detaylı bilgileri çıkar. 
-        Analiz yaparken şu adımları takip et:
-        
-        1. **Kritik Bilgileri Belirle:**  
-            - Metindeki temel kavramları, önemli terimleri ve ana fikirleri tespit et.  
-            - Metindeki iddiaları, savunulan görüşleri ve karşıt argümanları belirle.  
-            - Eğer metin teknik veya akademikse, kilit prensipleri ve süreçleri açıkla.  
-        
-        2. **Derinlemesine Açıklama Yap:**  
-            - "Neden?", "Nasıl?", "Kim?", "Ne zaman?" ve "Ne şekilde?" sorularını sorarak bilgileri detaylandır.  
-            - Kavramların ve olayların arkasındaki nedenleri ve süreçleri açıkla.  
-            - Bilginin önemini vurgula: "Bu bilgi neden kritiktir?" sorusuna yanıt ver.  
-        
-        3. **Sayısal Verileri Listele:**  
-            - Metinde geçen istatistikleri, oranları, ölçüleri ve diğer sayısal bilgileri belirle.  
-            - Sayısal verileri bağlam içinde açıkla: "Bu sayı ne anlama geliyor?" sorusunu yanıtla.  
-        
-        4. **Eyleme Geçirilebilir Adımları Vurgula:**  
-            - Metin içinde herhangi bir süreç, prosedür, talimat veya uygulanabilir bir öneri varsa, bunları listele.  
-            - Adımları açık, net ve sıralı olarak belirt.  
-        
-        5. **Farklı Bakış Açılarını Dahil Et:**  
-            - Eğer metin bir tartışma içeriyorsa, farklı görüşleri listele ve güçlü/zayıf yönlerini açıkla.  
-            - Metindeki olası önyargıları veya eksik yönleri tespit et.  
+        Sana bir metin vereceğim. Bu metinden alınabilecek en önemli, kritik ve detaylı bilgileri çıkar.
+        Özellikle kendini geliştirmek isteyen bir insanın yararlanabileceği pratik öneri, strateji ve metodolojileri vurgula.
+        Analiz yaparken aşağıdaki adımları takip et:
 
-        Çıktıyı şu formatta ver:
+        1. **Kritik Bilgileri Belirle:**
+           - Metindeki temel kavramları, önemli terimleri ve ana fikirleri tespit et.
+           - İddiaları, savunulan görüşleri ve karşıt argümanları belirle.
+           - Teknik veya akademik metinlerde kilit prensipleri ve süreçleri açıkla.
 
-        - **Özet:** (Metnin en önemli noktalarını içeren kısa bir özet)  
-        - **Önemli Noktalar:** (Maddeler halinde detaylı analiz)  
-        - **İlgili Sayısal Veriler:** (Varsa istatistikler ve sayılar)  
-        - **Eylem Adımları:** (Varsa yapılması gerekenler)  
-        - **Farklı Bakış Açıları:** (Varsa karşıt görüşler ve analizleri)  
+        2. **Derinlemesine Açıklama Yap:**
+           - "Neden?", "Nasıl?", "Kim?", "Ne zaman?" ve "Ne şekilde?" sorularını sorarak bilgileri detaylandır.
+           - Kavramların ve olayların arkasındaki nedenleri ve süreçleri açıklığa kavuştur.
+           - "Bu bilgi neden kritiktir?" sorusuna yanıt vererek bilginin önemini vurgula.
+
+        3. **Sayısal Verileri Listele:**
+           - Metindeki istatistikleri, oranları, ölçüleri ve diğer sayısal bilgileri belirle.
+           - Bu sayıların ne anlama geldiğini ve bağlamını açıkla.
+
+        4. **Eyleme Geçirilebilir Adımları Vurgula:**
+           - Herhangi bir süreç, prosedür, talimat veya uygulanabilir öneri varsa bunları listele.
+           - Adımları açık, net ve sıralı olarak belirt.
+
+        5. **Farklı Bakış Açılarını Dahil Et:**
+           - Tartışma içeren metinlerde, farklı görüşleri listele ve güçlü/zayıf yönlerini analiz et.
+           - Olası önyargıları veya eksik yönleri tespit et.
+
+        6. **Duygusal ve Psikolojik Analiz:**
+           - Metindeki duygusal ifadeleri, motivasyonları ve psikolojik durumları belirle.
+           - Bu duyguların ve motivasyonların bilginin aktarımındaki etkisini yorumla.
+
+        7. **Önemli Alıntıları (Quote) Belirle:**
+           - Metin içinde yer alan, anlam taşıyan önemli alıntıları tespit et.
+           - Alıntıların bağlamını ve neden kritik olduklarını kısaca açıkla.
+
+        8. **Ayrı Konuların İncelemesini Sağla:**
+           - Metinde birbirinden bağımsız veya farklı konular/bölümler varsa, bunları ayrı başlıklar altında değerlendir.
+           - Her bölümün kendi kritik bilgilerini, eylem adımlarını ve detaylarını eksiksiz sun.
+
+        9. **Özetleme Yaparken Detayları Koruyarak Özetle:**
+           - Genel özet kısmını oluştururken ana noktaların kaybolmamasına dikkat et.
+           - Özet, bilgiyi aşırı kısaltmadan, tüm kritik ve detaylı noktaları kapsayacak şekilde olmalı.
+
+        10. **Kişisel Gelişim İçin Uygulanabilir Bilgiler:**
+            - Metindeki, kendini geliştirmek isteyen bir bireyin yararlanabileceği pratik öneriler, stratejiler ve metodolojileri vurgula.
+            - Her bilgiyi, kişisel gelişime nasıl katkıda bulunabileceğini belirterek açıkla.
+
+        Çıktıyı aşağıdaki formatta ver:
+
+        - **Özet:** (Metnin en önemli noktalarını içeren kısa ama detaylı bir özet)
+        - **Önemli Noktalar:** (Maddeler halinde detaylı analiz)
+        - **İlgili Sayısal Veriler:** (Varsa istatistikler ve sayılar)
+        - **Eylem Adımları:** (Varsa uygulanabilir adımlar ve süreçler)
+        - **Farklı Bakış Açıları:** (Varsa karşıt görüşler ve analizleri)
+        - **Duygusal Analiz:** (Varsa metindeki duygusal ifadeler ve etkileri)
+        - **Önemli Alıntılar:** (Metinden kritik anlam taşıyan alıntılar ve kısa açıklamaları)
         """
     else:
         prompt = """
-        I will give you a text. Extract the most important, critical, and detailed information.  
+        I will give you a text. Extract the most important, critical, and detailed information.
+        Emphasize actionable insights, strategies, and methodologies that can benefit someone looking to improve themselves.
         Follow these steps for in-depth analysis:
-        
-        1. **Identify Critical Information:**  
-            - Detect key concepts, important terms, and core ideas.  
-            - Identify claims, arguments, and counterarguments presented in the text.  
-            - If the text is technical or academic, explain the key principles and processes.  
-        
-        2. **Provide Detailed Explanations:**  
-            - Answer "Why?", "How?", "Who?", "When?", and "In what way?" questions.  
-            - Explain the reasons and mechanisms behind concepts and events.  
-            - Highlight the significance of the information: "Why is this important?"  
 
-        3. **List Numerical Data:**  
-            - Identify statistics, ratios, measurements, and other numerical data.  
-            - Explain the context of numbers: "What does this number mean?"  
+        1. **Identify Critical Information:**
+           - Detect key concepts, important terms, and core ideas in the text.
+           - Identify claims, arguments, and counterarguments.
+           - For technical or academic texts, explain the key principles and processes.
 
-        4. **Highlight Actionable Steps:**  
-            - If the text includes a process, procedure, instructions, or practical recommendations, list them.  
-            - Provide steps in a clear and ordered manner.  
+        2. **Provide Detailed Explanations:**
+           - Elaborate by answering "Why?", "How?", "Who?", "When?", and "In what way?".
+           - Explain the underlying reasons and mechanisms behind the concepts and events.
+           - Emphasize the significance by answering "Why is this information critical?"
 
-        5. **Include Different Perspectives:**  
-            - If the text contains debates, list opposing views and analyze their strengths/weaknesses.  
-            - Detect potential biases or missing elements in the discussion.  
+        3. **List Numerical Data:**
+           - Identify any statistics, ratios, measurements, and numerical details.
+           - Explain the meaning and context of these numbers.
+
+        4. **Highlight Actionable Steps:**
+           - If the text includes processes, procedures, instructions, or practical recommendations, list them.
+           - Provide clear, ordered steps.
+
+        5. **Include Different Perspectives:**
+           - For texts that contain debates, list opposing viewpoints and analyze their strengths and weaknesses.
+           - Identify any potential biases or missing elements.
+
+        6. **Emotional and Psychological Analysis:**
+           - Identify emotional expressions, motivations, or psychological states present in the text.
+           - Comment on the impact and significance of these emotions or motivations on the overall message.
+
+        7. **Identify Important Quotes:**
+           - Extract key quotes from the text that carry significant meaning.
+           - Briefly explain the context and why these quotes are critical.
+
+        8. **Separate Analysis of Distinct Topics:**
+           - If the text covers multiple independent topics or sections, analyze each separately.
+           - Ensure each topic’s critical information, actionable steps, and details are clearly presented.
+
+        9. **Avoid Over-Summarizing:**
+           - In the summary section, ensure that the main points are not overly condensed to the point of losing critical details.
+           - The summary should capture all essential and nuanced points.
+
+        10. **Actionable Insights for Self-Improvement:**
+            - Highlight practical suggestions, strategies, and methodologies that would benefit someone aiming for self-improvement.
+            - Explain how each piece of information can contribute to personal development.
 
         Provide the output in the following format:
 
-        - **Summary:** (A brief summary highlighting key points)  
-        - **Key Points:** (Bullet points with detailed analysis)  
-        - **Relevant Numerical Data:** (Any numbers or statistics if available)  
-        - **Actionable Steps:** (If there are any instructions or processes)  
-        - **Different Perspectives:** (If applicable, opposing views and analysis)  
+        - **Summary:** (A brief summary highlighting the key points without losing important details)
+        - **Key Points:** (Bullet points with detailed analysis)
+        - **Relevant Numerical Data:** (Any statistics or numbers if available)
+        - **Actionable Steps:** (Any instructions or processes)
+        - **Different Perspectives:** (If applicable, opposing views and analysis)
+        - **Emotional Analysis:** (If applicable, any emotional expressions and their impact)
+        - **Important Quotes:** (Key quotes from the text along with brief explanations)
         """
     return prompt
+
 
 def response_to_answer(response):
     try:

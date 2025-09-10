@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--use_ollama", action="store_true", help="Enable Ollama usage (optional).")
     parser.add_argument("--ollama_model_name", type=str, default="deepseek-r1:14b", help="Ollama model to be used (default: deepseek-r1:14b)")
     parser.add_argument("--whisper_model_size", type=str, default="base", help="Whisper model to be used (default: base)")
+    parser.add_argument("--language", type=str, default="tr", help="Language for Whisper transcription (default: None, auto-detect)")
     args = parser.parse_args()
     
     username = os.environ.get("USER")
@@ -35,6 +36,7 @@ def main():
     WHISPER_MODEL_NAME = args.whisper_model_size
     VIDEO_URL = args.youtube_url
     USE_OLLAMA = args.use_ollama
+    LANGUAGE = args.language
     
     if not USE_OLLAMA:
         GOOGLE_API_KEY = "" or os.getenv("GOOGLE_API_KEY") or get_API_KEY_env()
@@ -42,7 +44,7 @@ def main():
         if GOOGLE_API_KEY == "":
             raise "GOOGLE_API_KEY is not set. Please set it in the environment variables."
         else:
-            LLM_MODEL_NAME = "gemini-1.5-flash"
+            LLM_MODEL_NAME = "gemini-2.5-flash"
     else:
         # Check models and ensure the specified model is installed
         installed_models = check_ollama_models()
@@ -67,7 +69,7 @@ def main():
         pkl.dump([word_by_word_segments, segments, language], open(whisper_pkl_path, "wb"))
     
     full_text = "".join([segment[2] for segment in segments])
-
+    language = LANGUAGE if LANGUAGE != "None" else language
     extracted_notes = model_to_answer_choose(full_text, model_name=LLM_MODEL_NAME, prompt=None, language=language, USE_OLLAMA=USE_OLLAMA)
     print(Fore.CYAN + "Notes: \n", extracted_notes)
 

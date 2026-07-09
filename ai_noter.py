@@ -22,8 +22,10 @@ def main():
     setup_alias()
     parser = argparse.ArgumentParser(description="A script that downloads audio from YouTube videos and converts it to text.")
     parser.add_argument("youtube_url", type=str, help="YouTube URL to be processed")
-    parser.add_argument("--use_ollama", action="store_true", help="Enable Ollama usage (optional).")
+    parser.add_argument("--provider", type=str, default="openrouter", choices=["openrouter", "gemini", "ollama"], help="LLM provider to be used (default: openrouter)")
+    parser.add_argument("--use_ollama", action="store_true", help="Enable Ollama usage (shortcut for --provider ollama).")
     parser.add_argument("--ollama_model_name", type=str, default="deepseek-r1:14b", help="Ollama model to be used (default: deepseek-r1:14b)")
+    parser.add_argument("--openrouter_model_name", type=str, default="tencent/hy3:free", help="OpenRouter model to be used (default: tencent/hy3:free)")
     parser.add_argument("--whisper_model_size", type=str, default="base", help="Whisper model to be used (default: base)")
     parser.add_argument("--language", type=str, default="tr", help="Language for Whisper transcription (default: None, auto-detect)")
     args = parser.parse_args()
@@ -35,23 +37,29 @@ def main():
     # yt_start_time = time.time()
     WHISPER_MODEL_NAME = args.whisper_model_size
     VIDEO_URL = args.youtube_url
-    USE_OLLAMA = args.use_ollama
+    PROVIDER = "ollama" if args.use_ollama else args.provider
     LANGUAGE = args.language
-    
-    if not USE_OLLAMA:
-        GOOGLE_API_KEY = "" or os.getenv("GOOGLE_API_KEY") or get_API_KEY_env()
+    API_KEY = None
 
-        if GOOGLE_API_KEY == "":
-            raise "GOOGLE_API_KEY is not set. Please set it in the environment variables."
-        else:
-            LLM_MODEL_NAME = "gemini-2.5-flash"
-    else:
+    if PROVIDER == "ollama":
         # Check models and ensure the specified model is installed
         installed_models = check_ollama_models()
         if args.ollama_model_name not in installed_models:
             raise ValueError(f"The specified model '{args.ollama_model_name}' is not installed in Ollama.")
         else:
             LLM_MODEL_NAME = args.ollama_model_name
+    elif PROVIDER == "gemini":
+        GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or get_API_KEY_env("GOOGLE_API_KEY")
+        if not GOOGLE_API_KEY:
+            raise ValueError("GOOGLE_API_KEY is not set. Please set it in the environment variables or .env file.")
+        API_KEY = GOOGLE_API_KEY
+        LLM_MODEL_NAME = "gemini-2.5-flash"
+    else:  # openrouter
+        OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or get_API_KEY_env("OPENROUTER_API_KEY")
+        if not OPENROUTER_API_KEY:
+            raise ValueError("OPENROUTER_API_KEY is not set. Please set it in the environment variables or .env file.")
+        API_KEY = OPENROUTER_API_KEY
+        LLM_MODEL_NAME = args.openrouter_model_name
 
     audio_path, title = download_audio_from_youtube(VIDEO_URL, video_cache_path)
     print(Fore.GREEN + f"Video name:\n {title}\n")
@@ -70,7 +78,7 @@ def main():
     
     full_text = "".join([segment[2] for segment in segments])
     language = LANGUAGE if LANGUAGE != "None" else language
-    extracted_notes = model_to_answer_choose(full_text, model_name=LLM_MODEL_NAME, prompt=None, language=language, USE_OLLAMA=USE_OLLAMA)
+    extracted_notes = model_to_answer_choose(full_text, model_name=LLM_MODEL_NAME, prompt=None, language=language, provider=PROVIDER, api_key=API_KEY)
     print(Fore.CYAN + "Notes: \n", extracted_notes)
 
     note_path = os.path.join(video_cache_path, f"{video_name}_notes.txt")
@@ -79,7 +87,7 @@ def main():
     print(Fore.CYAN + "[Kullanıcı]: ", end="")
     user_feedback = input()
     if user_feedback.lower() == "y" or user_feedback.lower() == "yes":
-        extracted_notes = chatbot_interface(extracted_notes, full_text, language, use_ollama=USE_OLLAMA)
+        extracted_notes = chatbot_interface(extracted_notes, full_text, language, provider=PROVIDER, model_name=LLM_MODEL_NAME, api_key=API_KEY)
     else:
         print(Fore.GREEN, "Notes saved.")
 

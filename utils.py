@@ -1,5 +1,7 @@
-import yt_dlp
 import warnings as w
+w.simplefilter("ignore")  # Import kaynaklı uyarıları (ör. google.generativeai FutureWarning) sustur
+
+import yt_dlp
 import os
 from faster_whisper import WhisperModel
 import google.generativeai as genai
@@ -8,6 +10,7 @@ import ollama
 import subprocess
 import json
 import re
+import requests
 from colorama import Fore, Style, init
 import sys
 import locale
@@ -18,32 +21,40 @@ sys.stdout.reconfigure(encoding='utf-8')  # print() için UTF-8 kodlamasını zo
 # print("Terminal encoding:", locale.getpreferredencoding())  # Terminalin karakter setini gör
 
 init(autoreset=True)
-w.simplefilter("ignore")
 
-def get_API_KEY_env():
+def get_API_KEY_env(key_name="GOOGLE_API_KEY"):
     if os.path.exists(".env"):
         with open(".env", "r") as f:
             for line in f.readlines():
-                if "GOOGLE_API_KEY" in line:
+                if key_name in line:
                     return line.split("=")[1].strip()
 
 def setup_alias():
-    script_path = os.path.dirname(os.path.realpath(__file__)) + "/ai_noter.py"
-    alias_command = f"alias ai_noter='python {script_path}'"
-    
+    project_dir = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(project_dir, "ai_noter.py")
+    # Proje klasöründeki .venv ortamının python yorumlayıcısını kullan
+    venv_python = os.path.join(project_dir, ".venv", "bin", "python")
+    python_executable = venv_python if os.path.exists(venv_python) else (sys.executable or "python3")
+    alias_command = f"alias ai_noter='{python_executable} {script_path}'"
+
     # Kullanıcının kabuğunu belirle ve uygun dosyayı seç
     shell_rc = os.path.expanduser("~/.bashrc") if os.path.exists(os.path.expanduser("~/.bashrc")) else os.path.expanduser("~/.zshrc")
 
     # Dosya içinde alias olup olmadığını kontrol et
     with open(shell_rc, "r") as file:
         lines = file.readlines()
-    
-    if any(alias_command.strip() in line.strip() for line in lines):  
+
+    if any(alias_command.strip() == line.strip() for line in lines):
         print(Fore.YELLOW + "Alias already exists. No changes made.")
     else:
-        with open(shell_rc, "a") as file:
-            file.write(f"\n{alias_command}\n")
-        print(Fore.GREEN, "Alias added successfully. Restart your shell or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes.")
+        # Farklı bir yorumlayıcıyla eklenmiş eski ai_noter alias satırlarını temizle
+        new_lines = [line for line in lines if not line.strip().startswith("alias ai_noter=")]
+        if new_lines and not new_lines[-1].endswith("\n"):
+            new_lines[-1] += "\n"
+        new_lines.append(f"{alias_command}\n")
+        with open(shell_rc, "w") as file:
+            file.writelines(new_lines)
+        print(Fore.GREEN, "Alias added/updated successfully. Restart your shell or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes.")
 
 def check_ollama_models():
     try:
@@ -81,6 +92,42 @@ def get_ollama_response(prompt, model="deepseek-r1:14b"):
     response = ollama.chat(model=model, messages=[{"role": "user", "content": prompt}])
     return response["message"]["content"] if "message" in response else "Hata oluştu."
 
+def get_openrouter_response(prompt, system_prompt=None, model="tencent/hy3:free", api_key=None, reasoning=True):
+    """OpenRouter chat/completions API'sine istek atar ve cevabı döndürür."""
+    if api_key is None:
+        api_key = os.getenv("OPENROUTER_API_KEY") or get_API_KEY_env("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY is not set. Please set it in the environment variables or .env file.")
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    answer = None
+    while answer is None:
+        try:
+            response = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                data=json.dumps({
+                    "model": model,
+                    "messages": messages,
+                    "reasoning": {"enabled": reasoning},
+                }),
+            )
+            response.raise_for_status()
+            data = response.json()
+            answer = data["choices"][0]["message"]["content"]
+        except Exception as e:
+            print("OpenRouter Modeli Hata", e)
+            print("Tekrar denenmeden önce biraz bekleniyor...")
+            time.sleep(10)
+    return answer
+
 def get_chatbot_prompt(language="tr"):
     if language == "tr":
         prompt = """
@@ -94,7 +141,7 @@ def get_chatbot_prompt(language="tr"):
         """
     return prompt
 
-def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
+def chatbot_interface(initial_notes, full_text, language="tr", provider="openrouter", model_name=None, api_key=None):
     """
     Kullanıcı ile iteratif olarak notları geliştiren bir chatbot arayüzü.
     """
@@ -120,13 +167,17 @@ def chatbot_interface(initial_notes, full_text, language="tr", use_ollama=True):
         
         conversation += f"\nKullanıcı isteği: {user_input}\n" if language == "tr" else f"\nUser request: {user_input}\n"
         
-        if use_ollama:
-            updated_notes = get_ollama_response(conversation)
+        if provider == "ollama":
+            updated_notes = get_ollama_response(conversation, model=model_name or "deepseek-r1:14b")
             updated_notes = remove_think_sections(updated_notes)
-        else:
+        elif provider == "gemini":
             model = get_chatbot_model(language=language)
             response = model.generate_content(conversation)
             updated_notes = response_to_answer(response)
+        else:
+            system_prompt = get_chatbot_prompt(language)
+            updated_notes = get_openrouter_response(conversation, system_prompt=system_prompt, model=model_name or "tencent/hy3:free", api_key=api_key)
+            updated_notes = remove_think_sections(updated_notes)
 
         initial_notes = updated_notes  # Notları güncelleyerek döngüye devam et
     return updated_notes
@@ -295,19 +346,27 @@ def model_to_answer_ollama(full_text, model_name='mistral', prompt=None, languag
 
     return answer
 
-def model_to_answer_choose(full_text, model_name='gemini-1.5-flash', prompt=None, language="tr", USE_OLLAMA=False):
-    if USE_OLLAMA:
-        return model_to_answer_ollama(full_text, model_name=model_name, prompt=prompt, language=language)
+def model_to_answer_openrouter(full_text, model_name='tencent/hy3:free', prompt=None, language="tr", api_key=None):
+    if prompt is None:
+        prompt = get_prompt(language)
+    answer = get_openrouter_response(full_text, system_prompt=prompt, model=model_name, api_key=api_key)
+    answer = remove_think_sections(answer)
+    return answer
 
-    else:
+def model_to_answer_choose(full_text, model_name='gemini-1.5-flash', prompt=None, language="tr", provider="openrouter", api_key=None):
+    if provider == "ollama":
+        return model_to_answer_ollama(full_text, model_name=model_name, prompt=prompt, language=language)
+    elif provider == "gemini":
         return model_to_answer(full_text, model_name=model_name, prompt=prompt, language=language)
+    else:
+        return model_to_answer_openrouter(full_text, model_name=model_name, prompt=prompt, language=language, api_key=api_key)
 
 def download_audio_from_youtube(url, video_cache_path):
     os.makedirs(video_cache_path, exist_ok=True)
     
     # Video bilgilerini çek
     try:
-        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+        with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             video_id = info.get("id", url.split("v=")[-1])
             title = info.get("title", "unknown_title")
@@ -332,7 +391,8 @@ def download_audio_from_youtube(url, video_cache_path):
                 'preferredquality': '192',
             }],
             'outtmpl': output_path,
-            'quiet': True
+            'quiet': True,
+            'no_warnings': True
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -351,7 +411,8 @@ def download_audio_from_youtube(url, video_cache_path):
                 'preferredquality': '192',
             }],
             'outtmpl': output_path,
-            'quiet': False
+            'quiet': False,
+            'no_warnings': True
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

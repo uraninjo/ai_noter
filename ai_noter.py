@@ -1,8 +1,9 @@
 import os
+import re
 import time
 import pickle as pkl
 import argparse
-from utils import download_audio_from_youtube, run_whisper, print_segments, model_to_answer_choose, chatbot_interface, get_API_KEY_env, check_ollama_models, setup_alias
+from utils import download_audio_from_youtube, run_whisper, print_segments, model_to_answer_choose, chatbot_interface, get_API_KEY_env, check_ollama_models, setup_alias, write_transcript
 from colorama import Fore, Style, init
 import sys
 import locale
@@ -28,6 +29,9 @@ def main():
     parser.add_argument("--openrouter_model_name", type=str, default="tencent/hy3:free", help="OpenRouter model to be used (default: tencent/hy3:free)")
     parser.add_argument("--whisper_model_size", type=str, default="base", help="Whisper model to be used (default: base)")
     parser.add_argument("--language", type=str, default="tr", help="Language for Whisper transcription (default: None, auto-detect)")
+    parser.add_argument("--transcript", action="store_true", help="Only transcribe (speech-to-text) and write the transcript to a file; skip the LLM notes.")
+    parser.add_argument("--format", type=str, default="md", choices=["md", "txt"], help="Transcript file format for --transcript (default: md)")
+    parser.add_argument("--output", type=str, default=None, help="Transcript output path for --transcript (default: ./<video title>_transcript.<format>)")
     args = parser.parse_args()
     
     username = os.environ.get("USER")
@@ -41,7 +45,9 @@ def main():
     LANGUAGE = args.language
     API_KEY = None
 
-    if PROVIDER == "ollama":
+    if args.transcript:
+        pass  # Sadece transkript: LLM ayarlarına gerek yok
+    elif PROVIDER == "ollama":
         # Check models and ensure the specified model is installed
         installed_models = check_ollama_models()
         if args.ollama_model_name not in installed_models:
@@ -76,6 +82,13 @@ def main():
         word_by_word_segments, segments = print_segments(word_segments)
         pkl.dump([word_by_word_segments, segments, language], open(whisper_pkl_path, "wb"))
     
+    if args.transcript:
+        safe_title = re.sub(r'[\\/:*?"<>|]+', "", title).strip().replace(" ", "_")[:80] or video_name
+        output_path = args.output or os.path.join(os.getcwd(), f"{safe_title}_transcript.{args.format}")
+        write_transcript(segments, output_path, title, VIDEO_URL, language, fmt=args.format)
+        print(Fore.GREEN + f"Transcript saved: {output_path}")
+        return
+
     full_text = "".join([segment[2] for segment in segments])
     language = LANGUAGE if LANGUAGE != "None" else language
     extracted_notes = model_to_answer_choose(full_text, model_name=LLM_MODEL_NAME, prompt=None, language=language, provider=PROVIDER, api_key=API_KEY)

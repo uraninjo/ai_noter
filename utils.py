@@ -3,6 +3,26 @@ w.simplefilter("ignore")  # Import kaynaklı uyarıları (ör. google.generative
 
 import yt_dlp
 import os
+import ctypes
+import glob
+
+def _preload_cuda_libs():
+    # ctranslate2 cuBLAS/cuDNN'i dlopen ile arar; pip'ten gelen nvidia-* paketleri
+    # LD_LIBRARY_PATH'te olmadığı için önceden yüklüyoruz (soname ile eşleşir).
+    try:
+        import nvidia
+    except ImportError:
+        return
+    for base in nvidia.__path__:
+        for pattern in ("cublas/lib/libcublasLt.so.*", "cublas/lib/libcublas.so.*", "cudnn/lib/libcudnn*.so.*"):
+            for lib in sorted(glob.glob(os.path.join(base, pattern))):
+                try:
+                    ctypes.CDLL(lib, mode=ctypes.RTLD_GLOBAL)
+                except OSError:
+                    pass
+
+_preload_cuda_libs()
+
 from faster_whisper import WhisperModel
 import google.generativeai as genai
 import time
@@ -23,11 +43,14 @@ sys.stdout.reconfigure(encoding='utf-8')  # print() için UTF-8 kodlamasını zo
 init(autoreset=True)
 
 def get_API_KEY_env(key_name="GOOGLE_API_KEY"):
-    if os.path.exists(".env"):
-        with open(".env", "r") as f:
+    # .env dosyasını çalışma dizininden değil, proje klasöründen oku
+    env_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
             for line in f.readlines():
-                if key_name in line:
-                    return line.split("=")[1].strip()
+                key, sep, value = line.partition("=")
+                if sep and key.strip() == key_name:
+                    return value.strip().strip('"').strip("'")
 
 def setup_alias():
     project_dir = os.path.dirname(os.path.realpath(__file__))
@@ -420,11 +443,72 @@ def download_audio_from_youtube(url, video_cache_path):
         return output_path + ".m4a", title
 
 def run_whisper(input_file= "audio.mp3", word_timestamps=False, model_name="large_v3"):
-    model = WhisperModel(model_name, device="cuda", compute_type="float16")
-    segments, info = model.transcribe(input_file, vad_filter=True, vad_parameters=dict(min_silence_duration_ms=100), word_timestamps=word_timestamps)
+    def _transcribe(device, compute_type):
+        model = WhisperModel(model_name, device=device, compute_type=compute_type)
+        # detect_language burada eager çalışır; CUDA kütüphanesi eksikse hata burada çıkar.
+        return model.transcribe(input_file, vad_filter=True, vad_parameters=dict(min_silence_duration_ms=100), word_timestamps=word_timestamps)
+
+    try:
+        segments, info = _transcribe("cuda", "float16")
+    except Exception as e:
+        print(Fore.YELLOW + f"[whisper] GPU (CUDA) kullanılamadı: {e}")
+        print(Fore.YELLOW + "[whisper] CPU'ya geçiliyor (compute_type=int8)...")
+        segments, info = _transcribe("cpu", "int8")
     # segments, info = model.detect_language_multi_segment(input_file)
     # print("Detected language '{}' with probability {:.2f}".format(info.language, info.language_probability))
     return segments, info.language
+
+def _format_timestamp(seconds):
+    seconds = int(seconds)
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h:d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+def group_segments_into_paragraphs(segments, max_duration=60.0, pause_threshold=2.0):
+    # Whisper segmentlerini okunabilir paragraflara böler: uzun sessizlikte veya
+    # paragraf max_duration'ı aşıp cümle bittiğinde yeni paragraf başlar.
+    paragraphs = []
+    current = None
+    prev_end = None
+    for start, end, text in segments:
+        text = text.strip()
+        if not text:
+            continue
+        long_pause = prev_end is not None and start - prev_end >= pause_threshold
+        too_long = current is not None and end - current["start"] >= max_duration and current["text"][-1][-1:] in ".?!…"
+        if current is None or long_pause or too_long:
+            current = {"start": start, "end": end, "text": []}
+            paragraphs.append(current)
+        current["text"].append(text)
+        current["end"] = end
+        prev_end = end
+    return [(p["start"], p["end"], " ".join(p["text"])) for p in paragraphs]
+
+def write_transcript(segments, output_path, title, url, language, fmt="md"):
+    paragraphs = group_segments_into_paragraphs(segments)
+    duration = _format_timestamp(segments[-1][1]) if segments else "00:00"
+
+    if fmt == "md":
+        lines = [
+            f"# {title}",
+            "",
+            f"- **Kaynak:** {url}",
+            f"- **Dil:** {language}",
+            f"- **Süre:** {duration}",
+            "",
+            "## Transkript",
+            "",
+        ]
+        for start, _, text in paragraphs:
+            lines += [f"**[{_format_timestamp(start)}]** {text}", ""]
+    else:
+        lines = [title, f"Kaynak: {url}", f"Dil: {language}", f"Süre: {duration}", ""]
+        for start, _, text in paragraphs:
+            lines += [f"[{_format_timestamp(start)}] {text}", ""]
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines).rstrip() + "\n")
+    return output_path
 
 def print_segments(segments, log=False):
     word_by_word = []
